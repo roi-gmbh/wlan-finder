@@ -81,7 +81,9 @@
     border-bottom: 1px solid var(--line); padding: 6px 8px 6px 0; white-space: nowrap;
   }
   table.log td { border-bottom: 1px solid var(--line); padding: 7px 8px 7px 0; vertical-align: top; }
-  table.log td.pw { font-family: ui-monospace, "Consolas", monospace; word-break: break-all; }
+  /* anywhere statt break-all: bricht lange Passwörter um, zerlegt aber nicht
+     "(nicht verbunden)" mitten im Wort. */
+  table.log td.pw { font-family: ui-monospace, "Consolas", monospace; overflow-wrap: anywhere; }
   .field { display: flex; flex-direction: column; gap: 4px; }
   .field label { font-size: .8rem; color: var(--muted); }
   .scroll { overflow-x: auto; }
