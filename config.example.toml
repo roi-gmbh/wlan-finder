@@ -1,0 +1,55 @@
+# WLAN Finder - Beispielkonfiguration.
+# Kopiere diese Datei nach config.toml und passe sie an.
+
+[general]
+# Adresse, unter der die Weboberfläche erreichbar ist.
+# 127.0.0.1 = nur auf diesem Rechner erreichbar. Nicht auf 0.0.0.0 stellen,
+# solange keine Authentifizierung eingebaut ist.
+host = "127.0.0.1"
+port = 8765
+
+# Wie oft im Hintergrund nach WLANs gesucht wird (Sekunden). 0 = nie automatisch.
+scan_interval_seconds = 60
+
+[safety]
+# WLAN Finder verbindet NIE von selbst. Diese Einstellung existiert bewusst
+# nicht als "auto_connect = true" - jeder Verbindungsaufbau wird angeboten
+# und muss in der Oberfläche bestätigt werden.
+
+# Darf der Agent Haken bei "AGB akzeptieren" / "Datenschutz gelesen" setzen?
+# false = der Agent bricht ab und fragt dich. Bewusst der Standard:
+# so ein Haken ist eine Willenserklärung in deinem Namen.
+accept_terms = false
+
+# Trockenlauf: Der Agent analysiert das Portal und protokolliert, was er
+# tun WUERDE, fuehrt aber keine Klicks aus. Zum Kennenlernen empfohlen.
+dry_run = true
+
+# Hoechstzahl an Schritten, die der Agent auf einer Portalseite machen darf.
+max_agent_steps = 20
+
+[portal]
+# URLs, mit denen geprüft wird, ob echtes Internet da ist oder ein Portal
+# dazwischenhängt. Die erste ist die von Windows selbst genutzte.
+check_urls = [
+    "http://www.msftconnecttest.com/connecttest.txt",
+    "http://connectivitycheck.gstatic.com/generate_204",
+]
+timeout_seconds = 5
+
+# Browserfenster beim Portal-Login sichtbar zeigen (true) oder unsichtbar
+# im Hintergrund (false). Sichtbar ist beim Einrichten hilfreich.
+headful = true
+
+[agent]
+model = "claude-opus-5"
+max_tokens = 16000
+# Der API-Key wird NICHT hier abgelegt, sondern aus der Umgebungsvariablen
+# ANTHROPIC_API_KEY gelesen.
+
+[networks]
+# Optionale Liste bekannter Netze. "trusted" heisst nur: wird in der
+# Oberfläche hervorgehoben - verbunden wird trotzdem erst auf Klick.
+# [[networks.known]]
+# ssid = "Campingplatz-Gast"
+# trusted = true

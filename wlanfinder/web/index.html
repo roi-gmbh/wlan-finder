@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WLAN Finder</title>
+<style>
+  /* Bewusst nur Systemschriften: Im Bus ist oft kein Internet da, und dann
+     laedt keine externe Schrift. */
+  :root {
+    --bg: #12151a;
+    --panel: #1b2029;
+    --panel-2: #232a35;
+    --line: #333c4a;
+    --text: #e8ecf2;
+    --muted: #97a3b4;
+    --accent: #4da3ff;
+    --ok: #4ec98a;
+    --warn: #e5b567;
+    --bad: #e57373;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f6f9; --panel: #ffffff; --panel-2: #eef1f6; --line: #d7dde6;
+      --text: #1a1f27; --muted: #5d6877; --accent: #0b64c8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 64px;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: .9rem; }
+  section {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 16px; margin-bottom: 16px;
+  }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .grow { flex: 1 1 auto; min-width: 0; }
+  .muted { color: var(--muted); font-size: .85rem; }
+  button {
+    font: inherit; padding: 8px 14px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .net { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .net:first-of-type { border-top: 0; }
+  .ssid { font-weight: 600; word-break: break-word; }
+  .badge {
+    font-size: .72rem; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+  }
+  .badge.ok { color: var(--ok); border-color: var(--ok); }
+  .badge.warn { color: var(--warn); border-color: var(--warn); }
+  .badge.bad { color: var(--bad); border-color: var(--bad); }
+  .bar { width: 52px; height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  .banner { border-left: 3px solid var(--warn); padding: 10px 12px; background: var(--panel-2); border-radius: 8px; margin-bottom: 12px; }
+  .banner.bad { border-left-color: var(--bad); }
+  pre {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px; overflow-x: auto; font-size: .82rem; white-space: pre-wrap;
+    max-height: 260px; overflow-y: auto; margin: 0;
+  }
+  input {
+    font: inherit; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); min-width: 0;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 4px 6px 4px 0; }
+  td input { width: 100%; }
+  @media (max-width: 520px) { .net { flex-wrap: wrap; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>WLAN Finder</h1>
+  <p class="sub">Sucht WLANs am Standort, bietet den Wechsel an und meldet sich bei Bedarf am Gastportal an. Verbunden wird nur auf Klick.</p>
+
+  <section>
+    <div class="row">
+      <div class="grow">
+        <div id="link-state">Wird geladen …</div>
+        <div class="muted" id="link-detail"></div>
+      </div>
+      <button class="primary" id="refresh">Erneut suchen</button>
+    </div>
+  </section>
+
+  <section id="portal-section" hidden>
+    <h2>Anmeldeseite erkannt</h2>
+    <div class="banner" id="portal-banner"></div>
+    <p class="muted">Angaben, die der Agent eintragen darf. Leere Zeilen werden ignoriert — erfunden wird nichts.</p>
+    <table id="hints">
+      <tr><td><input placeholder="Feld, z. B. Stellplatznummer"></td><td><input placeholder="Wert, z. B. 42"></td></tr>
+      <tr><td><input placeholder="Feld"></td><td><input placeholder="Wert"></td></tr>
+      <tr><td><input placeholder="Feld"></td><td><input placeholder="Wert"></td></tr>
+    </table>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="start-portal">Anmeldung starten</button>
+      <span class="muted" id="portal-mode"></span>
+    </div>
+    <div id="portal-log" style="margin-top:12px" hidden>
+      <div class="muted" style="margin-bottom:6px">Schritte des Agenten</div>
+      <pre id="portal-steps"></pre>
+    </div>
+  </section>
+
+  <section>
+    <h2>Gefundene Netze</h2>
+    <div id="offers"></div>
+  </section>
+
+  <section>
+    <h2 style="margin-bottom:8px">Sicherheitseinstellungen</h2>
+    <div class="row" id="safety"></div>
+    <p class="muted" style="margin:10px 0 0">Änderbar in <code>config.toml</code>. WLAN Finder wechselt das Netz nie von selbst.</p>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let busy = false;
+
+async function api(path, body) {
+  const options = body
+    ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+    : { method: path === "/api/state" ? "GET" : "POST" };
+  const response = await fetch(path, options);
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+function signalBar(value) {
+  return `<span class="bar" title="${value}%"><i style="width:${Math.max(4, value)}%"></i></span>`;
+}
+
+function securityBadge(net) {
+  if (net.security === "open") return '<span class="badge warn">offen</span>';
+  if (net.security === "wep") return '<span class="badge bad">WEP, unsicher</span>';
+  if (net.security === "wpa-enterprise") return '<span class="badge">Firmennetz</span>';
+  if (net.security === "wpa-personal") return '<span class="badge ok">verschlüsselt</span>';
+  return '<span class="badge">unbekannt</span>';
+}
+
+function renderLink(state) {
+  const names = { ethernet: "Kabel / LTE-Router", wifi: "WLAN", none: "keine Verbindung" };
+  let text = `Verbunden über <strong>${names[state.link] || state.link}</strong>`;
+  if (state.current_ssid) text += ` — ${state.current_ssid}`;
+  $("link-state").innerHTML = text;
+
+  const c = state.connectivity;
+  $("link-detail").textContent = !c
+    ? "WLAN-Adapter hat keine Adresse — es wurde noch nicht über WLAN geprüft."
+    : c.online ? "Über WLAN ist echtes Internet erreichbar."
+    : c.captive_portal ? "Über WLAN hängt eine Anmeldeseite dazwischen."
+    : `Über WLAN kein Internet (${c.detail}).`;
+}
+
+function renderPortal(state) {
+  const c = state.connectivity;
+  const job = state.portal_job;
+  const show = !!(c && c.captive_portal) || job.running || job.result;
+  $("portal-section").hidden = !show;
+  if (!show) return;
+
+  $("portal-banner").textContent = c && c.portal_url
+    ? `Portalseite: ${c.portal_url}`
+    : "Portalseite wurde erkannt.";
+  $("portal-mode").textContent = state.safety.dry_run
+    ? "Trockenlauf: Der Agent protokolliert nur, er klickt nichts."
+    : "Scharf geschaltet: Der Agent bedient die Seite wirklich.";
+
+  $("start-portal").disabled = job.running || busy;
+  $("start-portal").textContent = job.running ? "Agent arbeitet …" : "Anmeldung starten";
+
+  const lines = [];
+  if (job.error) lines.push("Fehler: " + job.error);
+  lines.push(...(job.steps || []));
+  if (job.result) {
+    const verdicts = {
+      online: "Ergebnis: Internet steht.",
+      needs_human: "Ergebnis: Hier musst du selbst übernehmen.",
+      failed: "Ergebnis: hat nicht geklappt.",
+      dry_run: "Ergebnis: Trockenlauf beendet, nichts geklickt.",
+    };
+    lines.push("", verdicts[job.result.verdict] || job.result.verdict);
+    if (job.result.reason) lines.push(job.result.reason);
+  }
+  $("portal-log").hidden = lines.length === 0;
+  $("portal-steps").textContent = lines.join("\n");
+}
+
+function renderOffers(state) {
+  const box = $("offers");
+  if (state.error) {
+    box.innerHTML = `<div class="banner bad">${state.error}</div>`;
+    return;
+  }
+  if (!state.offers.length) {
+    box.innerHTML = '<p class="muted">Kein Netz in Reichweite, das einen Wechsel lohnt. Schwache Netze (unter 40 %) und Firmennetze werden ausgeblendet.</p>';
+    return;
+  }
+  box.innerHTML = state.offers.map((offer) => {
+    const net = offer.network;
+    const badges = [
+      securityBadge(net),
+      net.known ? '<span class="badge ok">bekannt</span>' : "",
+      offer.needs_portal_login ? '<span class="badge warn">Anmeldeseite wahrscheinlich</span>' : "",
+    ].join(" ");
+    return `<div class="net">
+      ${signalBar(net.signal)}
+      <div class="grow">
+        <div class="ssid">${escapeHtml(net.ssid)} ${badges}</div>
+        <div class="muted">${escapeHtml(offer.reason)}</div>
+      </div>
+      <button data-ssid="${escapeHtml(net.ssid)}" data-pass="${offer.needs_passphrase}">Verbinden</button>
+    </div>`;
+  }).join("");
+
+  box.querySelectorAll("button").forEach((button) => {
+    button.onclick = async () => {
+      const ssid = button.dataset.ssid;
+      let passphrase = null;
+      if (button.dataset.pass === "true") {
+        passphrase = prompt(`WLAN-Passwort für "${ssid}":`);
+        if (passphrase === null) return;
+      }
+      await withBusy(() => api("/api/connect", { ssid, passphrase }));
+    };
+  });
+}
+
+function renderSafety(state) {
+  const items = [
+    state.safety.dry_run
+      ? '<span class="badge ok">Trockenlauf an</span>'
+      : '<span class="badge warn">Trockenlauf aus — Agent klickt wirklich</span>',
+    state.safety.accept_terms
+      ? '<span class="badge warn">darf AGB zustimmen</span>'
+      : '<span class="badge ok">darf keiner AGB zustimmen</span>',
+    `<span class="badge">max. ${state.safety.max_agent_steps} Schritte</span>`,
+  ];
+  $("safety").innerHTML = items.join(" ");
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (ch) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+}
+
+function render(state) {
+  renderLink(state);
+  renderPortal(state);
+  renderOffers(state);
+  renderSafety(state);
+}
+
+async function withBusy(action) {
+  busy = true;
+  $("refresh").disabled = true;
+  try {
+    render(await action());
+  } catch (error) {
+    $("link-detail").textContent = "Fehler: " + error.message;
+  } finally {
+    busy = false;
+    $("refresh").disabled = false;
+  }
+}
+
+function collectHints() {
+  const hints = {};
+  $("hints").querySelectorAll("tr").forEach((row) => {
+    const [key, value] = row.querySelectorAll("input");
+    if (key.value.trim() && value.value.trim()) hints[key.value.trim()] = value.value.trim();
+  });
+  return hints;
+}
+
+$("refresh").onclick = () => withBusy(() => api("/api/refresh"));
+$("start-portal").onclick = () => withBusy(() => api("/api/portal", { hints: collectHints() }));
+
+// Erststart und danach regelmaessig nachsehen - so wandern auch die Schritte
+// des Agenten live in die Anzeige.
+withBusy(() => api("/api/refresh"));
+setInterval(async () => {
+  if (busy) return;
+  try { render(await api("/api/state")); } catch (_) { /* Server weg - naechster Versuch */ }
+}, 2000);
+</script>
+</body>
+</html>
