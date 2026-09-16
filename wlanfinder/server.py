@@ -30,6 +30,10 @@ class ConnectRequest(BaseModel):
     address: str | None = None
 
 
+class AddressRequest(BaseModel):
+    address: str = ""
+
+
 class LogbookRequest(BaseModel):
     ssid: str
     password: str = ""
@@ -60,6 +64,11 @@ def create_app(service: Service) -> FastAPI:
     @app.post("/api/connect")
     def connect(request: ConnectRequest) -> dict:
         return service.connect(request.ssid, request.passphrase, request.address)
+
+    @app.post("/api/address")
+    def set_address(request: AddressRequest) -> dict:
+        """Standort setzen, ohne gleich zu scannen."""
+        return service.set_address(request.address)
 
     @app.post("/api/logbook")
     def add_logbook_entry(request: LogbookRequest) -> dict:

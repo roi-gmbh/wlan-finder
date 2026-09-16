@@ -90,15 +90,22 @@ Das leistet WLAN Finder nicht.
 
 ## Logbuch
 
-Jede Verbindung wird in `wlan-logbuch.csv` festgehalten — vier Spalten:
+**Jede Suche wird protokolliert — mit allen sichtbaren Netzen**, nicht nur mit
+denen, die du benutzt hast. So steht später da, was es an einem Platz überhaupt
+gab. Vier Spalten:
 
 | Datum | WLAN | Passwort | Adresse |
 |---|---|---|---|
-| 2026-07-04 18:30 | Campingplatz-Gast | (offenes Netz) | Seeweg 3, 23570 Lübeck |
-| 2026-07-11 14:05 | Stellplatz-WLAN | sonne2026 | Am Deich 7, 25980 Sylt |
+| 2026-07-04 18:30 | Campingplatz-Gast | (nicht verbunden) | Seeweg 3, 23570 Lübeck |
+| 2026-07-04 18:30 | Stellplatz-WLAN | sonne2026 | Seeweg 3, 23570 Lübeck |
+| 2026-07-04 18:30 | FRITZ!Box 7590 | (nicht verbunden) | Seeweg 3, 23570 Lübeck |
 
-Damit steht beim nächsten Besuch schwarz auf weiß, wie das Netz hieß und was
-es für ein Passwort hatte.
+Die Passwortspalte sagt damit zugleich, welches Netz du wirklich benutzt hast.
+
+**Verbindest du dich später mit einem Netz, wird die vorhandene Zeile
+ergänzt**, nicht eine zweite angelegt — sonst stünde dasselbe Netz zweimal da,
+einmal mit und einmal ohne Passwort. Umgekehrt gilt: Ein einmal notiertes
+Passwort wird von einem späteren Suchlauf nie wieder überschrieben.
 
 **Was in der Passwortspalte landet:**
 
@@ -106,7 +113,14 @@ es für ein Passwort hatte.
 - bei einem bekannten Netz das in Windows gespeicherte Passwort
   (`netsh wlan show profile ... key=clear`; verlangt erhöhte Rechte — ohne sie
   steht dort `(unbekannt)` statt eines falschen Werts), oder
-- `(offenes Netz)` bei Netzen ohne Verschlüsselung.
+- `(offenes Netz)` bei Netzen ohne Verschlüsselung, oder
+- `(nicht verbunden)`, solange das Netz nur gesehen wurde.
+
+**Ohne eingetragenen Standort wird nichts protokolliert.** Eine Liste von
+Netznamen ohne Ort beantwortet später keine Frage, und würde die Adresse
+nachgetragen, stünde alles ein zweites Mal da. Trägst du den Standort nach,
+wird der bereits vorliegende Suchtreffer sofort damit protokolliert — du musst
+nicht erneut suchen.
 
 **Die Adresse wird eingetragen, nicht ermittelt.** Das ist Absicht: Die
 öffentliche IP gehört dem LTE-Router und geolokalisiert irgendwohin, und eine
@@ -114,11 +128,8 @@ WLAN-basierte Ortung würde die BSSIDs deiner Umgebung an Google oder Mozilla
 senden. Das Feld merkt sich den zuletzt benutzten Wert — der Bus steht meist
 noch da, wo er gestern stand.
 
-**Geschrieben wird beim Verbinden, nicht bei jedem Scan.** Eine Zeile für ein
-Netz, mit dem du nie verbunden warst, hätte keine Passwortspalte und wäre nur
-Rauschen. Mehrfaches Verbinden mit demselben Netz am selben Ort und Tag ergibt
-einen Eintrag, keine fünf. Einen Platz von früher trägst du in der Oberfläche
-unter „Eintrag von Hand nachtragen" nach.
+Mehrfaches Suchen am selben Ort und Tag ergibt einen Satz Zeilen, keine fünf.
+Einen Platz von früher trägst du unter „Eintrag von Hand nachtragen" nach.
 
 Die Datei ist CSV mit Semikolon und BOM — deutsches Excel öffnet sie mit
 korrekten Umlauten per Doppelklick. In der Oberfläche gibt es einen
@@ -168,8 +179,8 @@ python -m wlanfinder --demo
    und Firmennetze mit Nutzerkonto werden ausgeblendet.
 2. **Verbinden** — nur auf Klick. Bei verschlüsselten, noch unbekannten Netzen
    fragt die Oberfläche nach dem Passwort.
-3. Jede Verbindung landet im **Logbuch** (s. o.). Trag den Standort vorher
-   oben ein, dann steht er in der Zeile.
+3. Alles Gefundene landet im **Logbuch** (s. o.) — Voraussetzung ist der
+   Standort im Feld ganz oben.
 4. Erkennt WLAN Finder danach eine Anmeldeseite, erscheint der Abschnitt
    **Anmeldeseite erkannt**. Dort trägst du ein, was das Portal erfahren darf
    (Stellplatznummer, Nachname, …), und startest den Agenten.
@@ -213,11 +224,12 @@ pip install -e ".[dev]"
 pytest
 ```
 
-52 Tests, ohne Netzwerk- und ohne API-Zugriff. Abgedeckt sind die
+65 Tests, ohne Netzwerk- und ohne API-Zugriff. Abgedeckt sind die
 netsh-Parser (deutsch und englisch), die Portal-Erkennung inklusive des
 heimtückischen Falls „Status 200, aber es ist die Portalseite", die
-Angebotsregeln, das Logbuch (Dublettenprüfung, Semikolons und Umlaute in
-den Werten) und vor allem die Sperren des Agenten.
+Angebotsregeln, das Logbuch (Suchläufe, nachträgliches Ergänzen des
+Passworts, Dublettenprüfung, Semikolons und Umlaute in den Werten) und vor
+allem die Sperren des Agenten.
 
 ---
 

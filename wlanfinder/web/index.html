@@ -102,10 +102,14 @@
       <button class="primary" id="refresh">Erneut suchen</button>
     </div>
     <div class="field" style="margin-top:14px">
-      <label for="address">Standort — kommt so ins Logbuch</label>
+      <label for="address">Standort — jede Suche wird hierunter protokolliert</label>
       <input id="address" placeholder="z. B. Campingplatz Seeblick, Seeweg 3, 23570 Lübeck">
       <span class="muted">Wird eingetragen, nicht ermittelt: Die IP gehört dem LTE-Router, und
       WLAN-Ortung würde die Netze deiner Umgebung an einen fremden Dienst melden.</span>
+      <div class="banner" id="address-hint" style="margin:8px 0 0" hidden>
+        Ohne Standort wird nichts protokolliert — eine Liste von Netznamen ohne Ort
+        beantwortet später keine Frage. Trag die Adresse ein und such erneut.
+      </div>
     </div>
   </section>
 
@@ -277,7 +281,7 @@ function renderLogbook(state) {
   const rows = state.logbook || [];
   const table = $("logbook");
   if (!rows.length) {
-    table.innerHTML = '<tr><td class="muted">Noch nichts eingetragen. Der erste Eintrag entsteht, sobald du dich mit einem Netz verbindest.</td></tr>';
+    table.innerHTML = '<tr><td class="muted">Noch nichts eingetragen. Trag oben einen Standort ein und such — dann landen alle gefundenen Netze hier.</td></tr>';
     return;
   }
   table.innerHTML =
@@ -296,6 +300,7 @@ function renderAddress(state) {
   if (document.activeElement !== field && !field.value && state.address) {
     field.value = state.address;
   }
+  $("address-hint").hidden = !state.logbook_needs_address || !!field.value.trim();
 }
 
 function renderSafety(state) {
@@ -359,6 +364,7 @@ $("man-add").onclick = async () => {
   $("man-pass").value = "";
 };
 
+$("address").onchange = () => withBusy(() => api("/api/address", { address: $("address").value.trim() }));
 $("refresh").onclick = () => withBusy(() => api("/api/refresh"));
 $("start-portal").onclick = () => withBusy(() => api("/api/portal", { hints: collectHints() }));
 

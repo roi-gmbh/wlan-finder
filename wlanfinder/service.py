@@ -12,7 +12,7 @@ from typing import Any
 
 from . import connectivity
 from .config import Config
-from .logbook import OPEN_NETWORK, Logbook
+from .logbook import NOT_CONNECTED, OPEN_NETWORK, Logbook
 from .models import Connectivity, LinkKind, Network, PortalResult, Verdict
 from .offer import build_offers
 from .wifi import WifiBackend, WifiError
@@ -84,6 +84,8 @@ class Service:
                 )
             else:
                 self.connectivity = None
+
+            self._log_scan()
         return self.state()
 
     def state(self) -> dict[str, Any]:
@@ -96,6 +98,9 @@ class Service:
             "connectivity": self.connectivity.to_dict() if self.connectivity else None,
             "portal_job": self.portal_job.to_dict(),
             "address": self.address,
+            # Ohne Adresse ergibt "pro Standort" keinen Sinn - die Oberfläche
+            # weist darauf hin, statt ortlose Zeilen zu sammeln.
+            "logbook_needs_address": self.config.logbook.enabled and not self.address,
             "logbook": [entry.to_dict() for entry in self.logbook.entries()],
             "safety": {
                 "dry_run": self.config.safety.dry_run,
@@ -126,6 +131,38 @@ class Service:
         # nicht geklappt hat, hilft beim nächsten Besuch nicht weiter.
         self._log_connection(ssid, passphrase)
         return self.refresh()
+
+    def set_address(self, address: str) -> dict[str, Any]:
+        """Standort merken. Der bereits vorliegende Suchtreffer wird damit
+        nachträglich protokolliert - sonst müsste man nach dem Eintragen
+        eigens noch einmal suchen."""
+        self.address = address.strip()
+        with self._lock:
+            self._log_scan()
+        return self.state()
+
+    def _log_scan(self) -> None:
+        """Alle sichtbaren Netze am aktuellen Standort festhalten.
+
+        Ohne eingetragene Adresse wird nichts geschrieben: Eine Liste von
+        Netznamen ohne Ort beantwortet später keine Frage, und sobald die
+        Adresse nachgetragen wird, stünde dasselbe noch einmal da.
+        """
+        if not self.config.logbook.enabled or not self.address or not self.networks:
+            return
+        items: list[tuple[str, str | None]] = []
+        for network in self.networks:
+            # Das Netz, an dem wir gerade hängen, ist nicht "nicht verbunden".
+            password = (
+                self._password_for(network.ssid, None)
+                if network.ssid == self.current_ssid
+                else NOT_CONNECTED
+            )
+            items.append((network.ssid, password))
+        try:
+            self.logbook.add_many(items, self.address)
+        except OSError as exc:
+            self.last_error = f"Logbuch konnte nicht geschrieben werden: {exc}"
 
     def _log_connection(self, ssid: str, passphrase: str | None) -> None:
         if not self.config.logbook.enabled:

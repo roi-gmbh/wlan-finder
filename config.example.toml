@@ -29,7 +29,9 @@ dry_run = true
 max_agent_steps = 20
 
 [logbook]
-# Logbuch der benutzten WLANs: Datum, WLAN-Name, Passwort, Adresse.
+# Logbuch aller gefundenen WLANs: Datum, WLAN-Name, Passwort, Adresse.
+# Protokolliert wird jede Suche mit allen sichtbaren Netzen - aber nur, wenn
+# in der Oberfläche ein Standort eingetragen ist.
 # CSV mit Semikolon als Trennzeichen - öffnet sich direkt in Excel.
 #
 # ACHTUNG: In dieser Datei stehen WLAN-Passwörter im Klartext. Sie gehört

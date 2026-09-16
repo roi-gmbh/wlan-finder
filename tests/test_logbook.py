@@ -74,3 +74,71 @@ def test_semikolon_und_umlaute_im_wert_zerlegen_die_datei_nicht(tmp_path):
 
 def test_leeres_logbuch_ist_kein_fehler(tmp_path):
     assert Logbook(tmp_path / "gibtsnicht.csv").entries() == []
+
+
+# -- Suchlauf protokollieren -------------------------------------------------
+
+from wlanfinder.logbook import NOT_CONNECTED
+
+
+def test_suchlauf_schreibt_alle_gefundenen_netze(tmp_path):
+    book = Logbook(tmp_path / "log.csv")
+    gefunden = [("Campingplatz-Gast", NOT_CONNECTED), ("Stellplatz-WLAN", NOT_CONNECTED)]
+
+    book.add_many(gefunden, "Seeweg 3, 23570 Lübeck")
+
+    assert {e.ssid for e in book.entries()} == {"Campingplatz-Gast", "Stellplatz-WLAN"}
+    assert all(e.password == NOT_CONNECTED for e in book.entries())
+
+
+def test_zweiter_suchlauf_am_selben_ort_verdoppelt_nichts(tmp_path):
+    book = Logbook(tmp_path / "log.csv")
+    gefunden = [("Gast", NOT_CONNECTED), ("Privat", NOT_CONNECTED)]
+
+    book.add_many(gefunden, "Seeweg 3", when=datetime(2026, 7, 1, 9, 0))
+    neu = book.add_many(gefunden, "Seeweg 3", when=datetime(2026, 7, 1, 9, 30))
+
+    assert neu == []
+    assert len(book.entries()) == 2
+
+
+def test_spaetere_verbindung_ergaenzt_die_vorhandene_zeile(tmp_path):
+    """Der wichtigste Fall: Das Netz stand vom Suchlauf schon da. Jetzt ist das
+    Passwort bekannt - es gehört in dieselbe Zeile, nicht in eine zweite."""
+    book = Logbook(tmp_path / "log.csv")
+    book.add_many([("Gast", NOT_CONNECTED)], "Seeweg 3", when=datetime(2026, 7, 1, 9, 0))
+
+    ergaenzt = book.add("Gast", "sommer2026", "Seeweg 3", when=datetime(2026, 7, 1, 14, 0))
+
+    assert ergaenzt is not None
+    assert len(book.entries()) == 1
+    eintrag = book.entries()[0]
+    assert eintrag.password == "sommer2026"
+    # Das Datum bleibt das der ersten Sichtung.
+    assert eintrag.date == "2026-07-01 09:00"
+
+
+def test_ein_echtes_passwort_wird_nicht_wieder_ueberschrieben(tmp_path):
+    """Ein späterer Suchlauf darf das gemerkte Passwort nicht plattmachen."""
+    book = Logbook(tmp_path / "log.csv")
+    book.add("Gast", "sommer2026", "Seeweg 3", when=datetime(2026, 7, 1, 9, 0))
+
+    assert book.add_many([("Gast", NOT_CONNECTED)], "Seeweg 3", when=datetime(2026, 7, 1, 18, 0)) == []
+    assert book.entries()[0].password == "sommer2026"
+
+
+def test_offenes_netz_verdraengt_den_platzhalter(tmp_path):
+    book = Logbook(tmp_path / "log.csv")
+    book.add_many([("Gast", NOT_CONNECTED)], "Seeweg 3", when=datetime(2026, 7, 1, 9, 0))
+
+    book.add("Gast", OPEN_NETWORK, "Seeweg 3", when=datetime(2026, 7, 1, 10, 0))
+
+    assert book.entries()[0].password == OPEN_NETWORK
+
+
+def test_gleiches_netz_an_zwei_orten_bleibt_getrennt(tmp_path):
+    book = Logbook(tmp_path / "log.csv")
+    book.add_many([("Telekom_FON", NOT_CONNECTED)], "Lübeck", when=datetime(2026, 7, 1, 9, 0))
+    book.add_many([("Telekom_FON", NOT_CONNECTED)], "Kiel", when=datetime(2026, 7, 1, 15, 0))
+
+    assert len(book.entries()) == 2
