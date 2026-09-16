@@ -159,3 +159,24 @@ def test_profil_xml_maskiert_sonderzeichen():
     assert "&amp;" in xml and "&quot;" in xml
     # Der Hex-Wert der SSID ist Pflicht, sonst lehnt Windows das Profil ab.
     assert 'Cafe & "Bar"'.encode("utf-8").hex().upper() in xml
+
+
+def test_passwort_aus_gespeichertem_profil():
+    """Für das Logbuch: das Klartext-Passwort eines bekannten Netzes."""
+    from wlanfinder.netsh import parse_profile_key
+
+    deutsch = """
+Sicherheitseinstellungen
+    Authentifizierung      : WPA2-Personal
+    Verschlüsselung        : CCMP
+    Schlüsselinhalt        : sommer2026
+"""
+    englisch = """
+Security settings
+    Authentication         : WPA2-Personal
+    Key Content            : summer2026
+"""
+    assert parse_profile_key(deutsch) == "sommer2026"
+    assert parse_profile_key(englisch) == "summer2026"
+    # Ohne key=clear steht da nichts - dann lieber None als ein falscher Wert.
+    assert parse_profile_key("    Authentifizierung : WPA2-Personal") is None

@@ -7,3 +7,7 @@ venv/
 config.toml
 .env
 state/
+
+# Logbuch: enthält WLAN-Passwörter im Klartext
+wlan-logbuch.csv
+*.csv

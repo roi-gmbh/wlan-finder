@@ -7,10 +7,12 @@ laufen nur feste Abläufe zusammen.
 from __future__ import annotations
 
 import threading
+from pathlib import Path
 from typing import Any
 
 from . import connectivity
 from .config import Config
+from .logbook import OPEN_NETWORK, Logbook
 from .models import Connectivity, LinkKind, Network, PortalResult, Verdict
 from .offer import build_offers
 from .wifi import WifiBackend, WifiError
@@ -45,6 +47,12 @@ class Service:
         self.connectivity: Connectivity | None = None
         self.portal_job = PortalJob()
         self.last_error: str | None = None
+        self.logbook = Logbook(Path(config.logbook.path))
+        # Der zuletzt eingetragene Standort. Eine Adresse lässt sich nicht
+        # zuverlässig automatisch bestimmen - die IP gehört dem LTE-Router,
+        # und WLAN-Ortung würde die Umgebung an einen fremden Dienst melden.
+        # Deshalb trägt der Nutzer sie ein, und wir merken sie uns.
+        self.address: str = self._last_known_address()
 
     # -- Zustand ------------------------------------------------------------
 
@@ -87,6 +95,8 @@ class Service:
             "offers": [o.to_dict() for o in offers],
             "connectivity": self.connectivity.to_dict() if self.connectivity else None,
             "portal_job": self.portal_job.to_dict(),
+            "address": self.address,
+            "logbook": [entry.to_dict() for entry in self.logbook.entries()],
             "safety": {
                 "dry_run": self.config.safety.dry_run,
                 "accept_terms": self.config.safety.accept_terms,
@@ -97,17 +107,63 @@ class Service:
 
     # -- Aktionen -----------------------------------------------------------
 
-    def connect(self, ssid: str, passphrase: str | None = None) -> dict[str, Any]:
+    def connect(
+        self, ssid: str, passphrase: str | None = None, address: str | None = None
+    ) -> dict[str, Any]:
         """Verbindet auf ausdrückliche Anweisung aus der Oberfläche.
 
         Es gibt bewusst keinen Pfad, der das von selbst tut.
         """
+        if address is not None:
+            self.address = address.strip()
         try:
             self.backend.connect(ssid, passphrase)
         except WifiError as exc:
             self.last_error = str(exc)
             return self.state()
+
+        # Erst nach erfolgreicher Verbindung ins Logbuch - ein Netz, mit dem es
+        # nicht geklappt hat, hilft beim nächsten Besuch nicht weiter.
+        self._log_connection(ssid, passphrase)
         return self.refresh()
+
+    def _log_connection(self, ssid: str, passphrase: str | None) -> None:
+        if not self.config.logbook.enabled:
+            return
+        try:
+            self.logbook.add(ssid, self._password_for(ssid, passphrase), self.address)
+        except OSError as exc:
+            # Ein nicht schreibbares Logbuch darf die Verbindung nicht kippen.
+            self.last_error = f"Logbuch konnte nicht geschrieben werden: {exc}"
+
+    def _password_for(self, ssid: str, passphrase: str | None) -> str | None:
+        """Was in die Passwortspalte gehört."""
+        if passphrase:
+            return passphrase
+        network = next((n for n in self.networks if n.ssid == ssid), None)
+        if network and network.is_open:
+            return OPEN_NETWORK
+        # Bekanntes Netz: Windows kennt das Passwort schon, wir fragen es ab.
+        try:
+            return self.backend.profile_password(ssid)
+        except WifiError:
+            return None
+
+    def add_logbook_entry(self, ssid: str, password: str, address: str) -> dict[str, Any]:
+        """Eintrag von Hand - etwa für einen Platz, an dem man vorher war."""
+        if address.strip():
+            self.address = address.strip()
+        try:
+            self.logbook.add(ssid, password, address)
+        except OSError as exc:
+            self.last_error = f"Logbuch konnte nicht geschrieben werden: {exc}"
+        return self.state()
+
+    def _last_known_address(self) -> str:
+        """Beim Start die zuletzt notierte Adresse vorschlagen - der Bus steht
+        meist noch da, wo er gestern stand."""
+        entries = self.logbook.entries()
+        return entries[0].address if entries else ""
 
     def start_portal_login(self, hints: dict[str, str] | None = None) -> dict[str, Any]:
         """Startet den Agenten auf der erkannten Portalseite - im Hintergrund,

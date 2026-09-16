@@ -88,6 +88,48 @@ Das leistet WLAN Finder nicht.
 
 ---
 
+## Logbuch
+
+Jede Verbindung wird in `wlan-logbuch.csv` festgehalten — vier Spalten:
+
+| Datum | WLAN | Passwort | Adresse |
+|---|---|---|---|
+| 2026-07-04 18:30 | Campingplatz-Gast | (offenes Netz) | Seeweg 3, 23570 Lübeck |
+| 2026-07-11 14:05 | Stellplatz-WLAN | sonne2026 | Am Deich 7, 25980 Sylt |
+
+Damit steht beim nächsten Besuch schwarz auf weiß, wie das Netz hieß und was
+es für ein Passwort hatte.
+
+**Was in der Passwortspalte landet:**
+
+- was du beim Verbinden eingetippt hast, oder
+- bei einem bekannten Netz das in Windows gespeicherte Passwort
+  (`netsh wlan show profile ... key=clear`; verlangt erhöhte Rechte — ohne sie
+  steht dort `(unbekannt)` statt eines falschen Werts), oder
+- `(offenes Netz)` bei Netzen ohne Verschlüsselung.
+
+**Die Adresse wird eingetragen, nicht ermittelt.** Das ist Absicht: Die
+öffentliche IP gehört dem LTE-Router und geolokalisiert irgendwohin, und eine
+WLAN-basierte Ortung würde die BSSIDs deiner Umgebung an Google oder Mozilla
+senden. Das Feld merkt sich den zuletzt benutzten Wert — der Bus steht meist
+noch da, wo er gestern stand.
+
+**Geschrieben wird beim Verbinden, nicht bei jedem Scan.** Eine Zeile für ein
+Netz, mit dem du nie verbunden warst, hätte keine Passwortspalte und wäre nur
+Rauschen. Mehrfaches Verbinden mit demselben Netz am selben Ort und Tag ergibt
+einen Eintrag, keine fünf. Einen Platz von früher trägst du in der Oberfläche
+unter „Eintrag von Hand nachtragen" nach.
+
+Die Datei ist CSV mit Semikolon und BOM — deutsches Excel öffnet sie mit
+korrekten Umlauten per Doppelklick. In der Oberfläche gibt es einen
+Download-Knopf, aber die Datei liegt ohnehin offen neben `config.toml`.
+
+> **Sie enthält Passwörter im Klartext.** Deshalb steht sie in `.gitignore` und
+> gehört nicht in eine Cloud-Synchronisation. Wer das anders haben will:
+> `enabled = false` in `[logbook]` schaltet das Logbuch ab.
+
+---
+
 ## Einrichten (Windows)
 
 Voraussetzungen: Windows 10/11, Python 3.11 oder neuer, ein Anthropic-API-Key.
@@ -126,10 +168,12 @@ python -m wlanfinder --demo
    und Firmennetze mit Nutzerkonto werden ausgeblendet.
 2. **Verbinden** — nur auf Klick. Bei verschlüsselten, noch unbekannten Netzen
    fragt die Oberfläche nach dem Passwort.
-3. Erkennt WLAN Finder danach eine Anmeldeseite, erscheint der Abschnitt
+3. Jede Verbindung landet im **Logbuch** (s. o.). Trag den Standort vorher
+   oben ein, dann steht er in der Zeile.
+4. Erkennt WLAN Finder danach eine Anmeldeseite, erscheint der Abschnitt
    **Anmeldeseite erkannt**. Dort trägst du ein, was das Portal erfahren darf
    (Stellplatznummer, Nachname, …), und startest den Agenten.
-4. Die Schritte des Agenten laufen live mit. Im Trockenlauf steht vor jedem
+5. Die Schritte des Agenten laufen live mit. Im Trockenlauf steht vor jedem
    Schritt `TROCKENLAUF:` — dann wurde nichts geklickt.
 
 Scharf schalten: In `config.toml` `dry_run = false` setzen.
@@ -141,6 +185,7 @@ Scharf schalten: In `config.toml` `dry_run = false` setzen.
 ```
 wlanfinder/
   netsh.py          netsh-Aufrufe und Parser (spracheunabhängig, s. u.)
+  logbook.py        CSV-Logbuch: Datum, WLAN, Passwort, Adresse
   wifi.py           Schnittstelle zur Hardware + Fake-Backend für Tests
   connectivity.py   Portal-Erkennung, an den WLAN-Adapter gebunden
   offer.py          Regeln: welcher Wechsel lohnt sich
@@ -168,10 +213,11 @@ pip install -e ".[dev]"
 pytest
 ```
 
-41 Tests, ohne Netzwerk- und ohne API-Zugriff. Abgedeckt sind die
+52 Tests, ohne Netzwerk- und ohne API-Zugriff. Abgedeckt sind die
 netsh-Parser (deutsch und englisch), die Portal-Erkennung inklusive des
 heimtückischen Falls „Status 200, aber es ist die Portalseite", die
-Angebotsregeln und vor allem die Sperren des Agenten.
+Angebotsregeln, das Logbuch (Dublettenprüfung, Semikolons und Umlaute in
+den Werten) und vor allem die Sperren des Agenten.
 
 ---
 

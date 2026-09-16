@@ -175,6 +175,29 @@ def parse_ipv4(output: str) -> str | None:
     return None
 
 
+# Ausnahme von der Regel "nicht auf Schlüsselnamen parsen": Das gespeicherte
+# WLAN-Passwort ist ein beliebiger String, seine Form verrät also nichts. Hier
+# bleibt nur der Schlüsselname - deshalb mit einer Liste der bekannten
+# Übersetzungen. Andere Sprachversionen liefern dann kein Passwort (und nicht
+# etwa ein falsches), das Logbuch trägt in dem Fall "(unbekannt)" ein.
+_KEY_CONTENT_NAMES = {
+    "schlüsselinhalt",      # Deutsch
+    "schluesselinhalt",
+    "key content",          # Englisch
+    "contenido de la clave",  # Spanisch
+    "contenu de la clé",    # Französisch
+}
+
+
+def parse_profile_key(output: str) -> str | None:
+    """Das Klartext-Passwort aus `netsh wlan show profile name=X key=clear`."""
+    for line in output.splitlines():
+        kv = _KV_LINE.match(line)
+        if kv and kv.group("key").strip().lower() in _KEY_CONTENT_NAMES:
+            return kv.group("value").strip() or None
+    return None
+
+
 def open_profile_xml(ssid: str) -> str:
     """Minimales Profil für ein offenes Netz.
 
@@ -277,6 +300,19 @@ class NetshBackend:
             return parse_ipv4(_run(["netsh", "interface", "ip", "show", "addresses", f"name={adapter}"]))
         except WifiError:
             return None
+
+    def profile_password(self, ssid: str) -> str | None:
+        """Gespeichertes Passwort eines bekannten Netzes - fürs Logbuch.
+
+        Verlangt erhöhte Rechte; ohne sie gibt netsh das Passwort nicht heraus.
+        Dann eben nicht: Der Aufruf schlägt still fehl statt den Verbindungs-
+        aufbau mitzureißen.
+        """
+        try:
+            output = _run(["netsh", "wlan", "show", "profile", f"name={ssid}", "key=clear"])
+        except WifiError:
+            return None
+        return parse_profile_key(output)
 
     def connect(self, ssid: str, passphrase: str | None = None) -> None:
         if ssid not in self.known_profiles():

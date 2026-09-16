@@ -75,6 +75,16 @@
   table { width: 100%; border-collapse: collapse; }
   td { padding: 4px 6px 4px 0; }
   td input { width: 100%; }
+  table.log { font-size: .88rem; }
+  table.log th {
+    text-align: left; font-weight: 600; color: var(--muted);
+    border-bottom: 1px solid var(--line); padding: 6px 8px 6px 0; white-space: nowrap;
+  }
+  table.log td { border-bottom: 1px solid var(--line); padding: 7px 8px 7px 0; vertical-align: top; }
+  table.log td.pw { font-family: ui-monospace, "Consolas", monospace; word-break: break-all; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: .8rem; color: var(--muted); }
+  .scroll { overflow-x: auto; }
   @media (max-width: 520px) { .net { flex-wrap: wrap; } }
 </style>
 </head>
@@ -90,6 +100,12 @@
         <div class="muted" id="link-detail"></div>
       </div>
       <button class="primary" id="refresh">Erneut suchen</button>
+    </div>
+    <div class="field" style="margin-top:14px">
+      <label for="address">Standort — kommt so ins Logbuch</label>
+      <input id="address" placeholder="z. B. Campingplatz Seeblick, Seeweg 3, 23570 Lübeck">
+      <span class="muted">Wird eingetragen, nicht ermittelt: Die IP gehört dem LTE-Router, und
+      WLAN-Ortung würde die Netze deiner Umgebung an einen fremden Dienst melden.</span>
     </div>
   </section>
 
@@ -115,6 +131,25 @@
   <section>
     <h2>Gefundene Netze</h2>
     <div id="offers"></div>
+  </section>
+
+  <section>
+    <div class="row" style="margin-bottom:12px">
+      <h2 class="grow" style="margin:0">Logbuch</h2>
+      <a href="/api/logbook.csv" download><button>CSV herunterladen</button></a>
+    </div>
+    <div class="scroll"><table class="log" id="logbook"></table></div>
+    <details style="margin-top:14px">
+      <summary class="muted" style="cursor:pointer">Eintrag von Hand nachtragen</summary>
+      <div class="row" style="margin-top:10px; align-items:flex-end">
+        <div class="field grow"><label>WLAN</label><input id="man-ssid" placeholder="Netzname"></div>
+        <div class="field grow"><label>Passwort</label><input id="man-pass" placeholder="Passwort"></div>
+        <button id="man-add">Eintragen</button>
+      </div>
+      <p class="muted" style="margin:8px 0 0">Die Adresse wird aus dem Feld „Standort" oben übernommen.</p>
+    </details>
+    <p class="muted" style="margin:12px 0 0">In dieser Datei stehen Passwörter im Klartext.
+    Sie gehört nicht in eine Cloud-Synchronisation.</p>
   </section>
 
   <section>
@@ -232,9 +267,35 @@ function renderOffers(state) {
         passphrase = prompt(`WLAN-Passwort für "${ssid}":`);
         if (passphrase === null) return;
       }
-      await withBusy(() => api("/api/connect", { ssid, passphrase }));
+      const address = $("address").value.trim();
+      await withBusy(() => api("/api/connect", { ssid, passphrase, address }));
     };
   });
+}
+
+function renderLogbook(state) {
+  const rows = state.logbook || [];
+  const table = $("logbook");
+  if (!rows.length) {
+    table.innerHTML = '<tr><td class="muted">Noch nichts eingetragen. Der erste Eintrag entsteht, sobald du dich mit einem Netz verbindest.</td></tr>';
+    return;
+  }
+  table.innerHTML =
+    "<tr><th>Datum</th><th>WLAN</th><th>Passwort</th><th>Adresse</th></tr>" +
+    rows.map((row) => `<tr>
+      <td style="white-space:nowrap">${escapeHtml(row.date)}</td>
+      <td>${escapeHtml(row.ssid)}</td>
+      <td class="pw">${escapeHtml(row.password)}</td>
+      <td>${escapeHtml(row.address)}</td>
+    </tr>`).join("");
+}
+
+function renderAddress(state) {
+  // Nicht überschreiben, während getippt wird.
+  const field = $("address");
+  if (document.activeElement !== field && !field.value && state.address) {
+    field.value = state.address;
+  }
 }
 
 function renderSafety(state) {
@@ -257,8 +318,10 @@ function escapeHtml(value) {
 
 function render(state) {
   renderLink(state);
+  renderAddress(state);
   renderPortal(state);
   renderOffers(state);
+  renderLogbook(state);
   renderSafety(state);
 }
 
@@ -283,6 +346,18 @@ function collectHints() {
   });
   return hints;
 }
+
+$("man-add").onclick = async () => {
+  const ssid = $("man-ssid").value.trim();
+  if (!ssid) return;
+  await withBusy(() => api("/api/logbook", {
+    ssid,
+    password: $("man-pass").value.trim(),
+    address: $("address").value.trim(),
+  }));
+  $("man-ssid").value = "";
+  $("man-pass").value = "";
+};
 
 $("refresh").onclick = () => withBusy(() => api("/api/refresh"));
 $("start-portal").onclick = () => withBusy(() => api("/api/portal", { hints: collectHints() }));

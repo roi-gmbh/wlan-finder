@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 from .config import Config
@@ -26,6 +26,14 @@ _INDEX = Path(__file__).parent / "web" / "index.html"
 class ConnectRequest(BaseModel):
     ssid: str
     passphrase: str | None = None
+    # Standort für das Logbuch. Wird eingetragen, nicht ermittelt.
+    address: str | None = None
+
+
+class LogbookRequest(BaseModel):
+    ssid: str
+    password: str = ""
+    address: str = ""
 
 
 class PortalRequest(BaseModel):
@@ -51,7 +59,22 @@ def create_app(service: Service) -> FastAPI:
 
     @app.post("/api/connect")
     def connect(request: ConnectRequest) -> dict:
-        return service.connect(request.ssid, request.passphrase)
+        return service.connect(request.ssid, request.passphrase, request.address)
+
+    @app.post("/api/logbook")
+    def add_logbook_entry(request: LogbookRequest) -> dict:
+        """Eintrag von Hand nachtragen."""
+        return service.add_logbook_entry(request.ssid, request.password, request.address)
+
+    @app.get("/api/logbook.csv")
+    def download_logbook() -> FileResponse:
+        """Die Datei zum Herunterladen - sie liegt ohnehin offen auf der Platte,
+        das hier spart nur das Suchen im Dateisystem."""
+        if not service.logbook.path.exists():
+            raise HTTPException(status_code=404, detail="Noch kein Logbuch vorhanden.")
+        return FileResponse(
+            service.logbook.path, media_type="text/csv", filename=service.logbook.path.name
+        )
 
     @app.post("/api/portal")
     def portal(request: PortalRequest) -> dict:

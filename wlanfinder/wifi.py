@@ -35,6 +35,10 @@ class WifiBackend(Protocol):
         """IP-Adresse des WLAN-Adapters, oder None wenn keine anliegt."""
         ...
 
+    def profile_password(self, ssid: str) -> str | None:
+        """Gespeichertes Passwort eines bekannten Netzes, falls abrufbar."""
+        ...
+
 
 class WifiError(RuntimeError):
     """Der Verbindungs- oder Scanbefehl des Betriebssystems ist fehlgeschlagen."""
@@ -70,6 +74,9 @@ class FakeBackend:
 
     def wlan_ipv4(self) -> str | None:
         return "192.0.2.10" if self._link[0] is LinkKind.WIFI else None
+
+    def profile_password(self, ssid: str) -> str | None:
+        return "gespeichert123" if ssid in self.known_profiles() else None
 
 
 def _demo_networks() -> list[Network]:

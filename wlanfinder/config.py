@@ -48,11 +48,19 @@ class AgentConfig:
 
 
 @dataclass
+class LogbookConfig:
+    # Relativ zur config.toml bzw. zum Arbeitsverzeichnis.
+    path: str = "wlan-logbuch.csv"
+    enabled: bool = True
+
+
+@dataclass
 class Config:
     general: GeneralConfig = field(default_factory=GeneralConfig)
     safety: SafetyConfig = field(default_factory=SafetyConfig)
     portal: PortalConfig = field(default_factory=PortalConfig)
     agent: AgentConfig = field(default_factory=AgentConfig)
+    logbook: LogbookConfig = field(default_factory=LogbookConfig)
     trusted_ssids: frozenset[str] = frozenset()
 
     @classmethod
@@ -71,6 +79,7 @@ class Config:
         cfg.safety = _fill(SafetyConfig, raw.get("safety", {}))
         cfg.portal = _fill(PortalConfig, raw.get("portal", {}))
         cfg.agent = _fill(AgentConfig, raw.get("agent", {}))
+        cfg.logbook = _fill(LogbookConfig, raw.get("logbook", {}))
 
         known = raw.get("networks", {}).get("known", [])
         cfg.trusted_ssids = frozenset(

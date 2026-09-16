@@ -28,6 +28,15 @@ dry_run = true
 # Hoechstzahl an Schritten, die der Agent auf einer Portalseite machen darf.
 max_agent_steps = 20
 
+[logbook]
+# Logbuch der benutzten WLANs: Datum, WLAN-Name, Passwort, Adresse.
+# CSV mit Semikolon als Trennzeichen - öffnet sich direkt in Excel.
+#
+# ACHTUNG: In dieser Datei stehen WLAN-Passwörter im Klartext. Sie gehört
+# nicht in eine Cloud-Synchronisation und nicht in ein Repository.
+enabled = true
+path = "wlan-logbuch.csv"
+
 [portal]
 # URLs, mit denen geprüft wird, ob echtes Internet da ist oder ein Portal
 # dazwischenhängt. Die erste ist die von Windows selbst genutzte.
