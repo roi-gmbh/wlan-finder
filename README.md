@@ -145,6 +145,21 @@ Download-Knopf, aber die Datei liegt ohnehin offen neben `config.toml`.
 
 Voraussetzungen: Windows 10/11, Python 3.11 oder neuer, ein Anthropic-API-Key.
 
+### Ortungsdienste einschalten — sonst findet nichts statt
+
+Neuere Windows-Versionen behandeln Netzwerknamen als Standortdaten und geben
+die WLAN-Liste nur mit eingeschalteten Ortungsdiensten heraus. Ohne sie liefert
+`netsh wlan show networks` gar nichts, auch nicht als Administrator.
+
+`Windows-Taste + R`, dann `ms-settings:privacy-location` eingeben. Dort **zwei**
+Schalter auf „Ein":
+
+1. **Ortungsdienste**
+2. **Desktop-Apps den Zugriff auf Ihren Standort erlauben**
+
+WLAN Finder erkennt diesen Fall und zeigt die Anleitung in der Oberfläche —
+du musst sie nicht auswendig können.
+
 ```powershell
 git clone <dieses-repo>
 cd wlan-finder
@@ -244,6 +259,9 @@ Ehrlich benannt, damit niemand davon überrascht wird:
 - **Kein Agentenlauf gegen ein echtes Portal.** Die Sperren sind getestet, das
   Verhalten des Modells auf einer echten Campingplatzseite nicht.
 - **WPA-Enterprise wird nicht unterstützt** (Firmennetze mit Nutzerkonto).
+- **Auf Firmenlaptops kann die Gruppenrichtlinie die Ortungsdienste sperren.**
+  Dann lässt sich der Schalter nicht umlegen und das Scannen bleibt blockiert —
+  das ist eine Entscheidung der IT, an der das Programm nichts ändern kann.
 - **Kein VPN, keine Verkehrsabsicherung.**
 - Die Erkennung von Zustimmungshaken ist eine Schlagwort-Heuristik. Sie kann
   einen ungewöhnlich beschrifteten AGB-Haken übersehen. Deshalb ist sie eine

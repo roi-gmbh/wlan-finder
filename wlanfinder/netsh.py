@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 
 from .models import LinkKind, Network, Security
-from .wifi import WifiError
+from .wifi import LocationPermissionError, WifiError
 
 # "SSID 1 : Name" - das Wort SSID ist in allen Windows-Sprachen gleich.
 _SSID_LINE = re.compile(r"^SSID\s+\d+\s*:\s*(.*)$")
@@ -41,6 +41,28 @@ def _decode(raw: bytes) -> str:
     return raw.decode("utf-8", errors="replace")
 
 
+# Windows nennt in dieser Meldung immer diesen URI - in jeder Sprachversion.
+# Deshalb wird darauf geprüft und nicht auf den übersetzten Fließtext.
+_LOCATION_URI = "ms-settings:privacy-location"
+_LOCATION_WORDS = ("standortberechtigungen", "location permission", "positionsdienste")
+
+LOCATION_HELP = (
+    "Windows gibt die Liste der WLANs nur heraus, wenn die Ortungsdienste "
+    "eingeschaltet sind - Netzwerknamen gelten dort inzwischen als Standortdaten. "
+    "So schaltest du sie ein: Windows-Taste + R drücken, "
+    "ms-settings:privacy-location eingeben, dann oben \u201eOrtungsdienste\u201c "
+    "einschalten und weiter unten \u201eDesktop-Apps den Zugriff auf Ihren Standort "
+    "erlauben\u201c. Danach hier auf \u201eErneut suchen\u201c klicken. "
+    "Bleibt es dabei, hilft meist, PowerShell als Administrator zu starten."
+)
+
+
+def _is_location_denied(output: str) -> bool:
+    """Erkennt die Windows-Meldung über fehlende Standortberechtigung."""
+    lowered = output.lower()
+    return _LOCATION_URI in lowered or any(word in lowered for word in _LOCATION_WORDS)
+
+
 def _run(args: list[str]) -> str:
     try:
         proc = subprocess.run(
@@ -51,7 +73,12 @@ def _run(args: list[str]) -> str:
         raise WifiError(f"{args[0]} nicht gefunden - läuft das hier wirklich auf Windows?") from exc
     out = _decode(proc.stdout)
     if proc.returncode != 0:
-        raise WifiError(f"{' '.join(args)} endete mit Code {proc.returncode}: {out.strip() or _decode(proc.stderr).strip()}")
+        detail = out.strip() or _decode(proc.stderr).strip()
+        # Der häufigste Stolperstein überhaupt - und die Windows-Meldung dazu
+        # ist eine Textwand. Deshalb hier eine kurze, brauchbare Anleitung.
+        if _is_location_denied(detail):
+            raise LocationPermissionError(LOCATION_HELP)
+        raise WifiError(f"{' '.join(args)} endete mit Code {proc.returncode}: {detail}")
     return out
 
 

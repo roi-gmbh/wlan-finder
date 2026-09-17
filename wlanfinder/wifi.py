@@ -44,6 +44,16 @@ class WifiError(RuntimeError):
     """Der Verbindungs- oder Scanbefehl des Betriebssystems ist fehlgeschlagen."""
 
 
+class LocationPermissionError(WifiError):
+    """Windows gibt die WLAN-Liste nur mit eingeschalteten Ortungsdiensten heraus.
+
+    Seit neueren Windows-Versionen gelten Netzwerknamen als Standortdaten -
+    ohne Positionsberechtigung liefert `netsh wlan show networks` nichts,
+    auch nicht als Administrator. Das ist keine Fehlkonfiguration des
+    Programms, sondern eine Einstellung, die der Nutzer treffen muss.
+    """
+
+
 class FakeBackend:
     """Backend ohne Hardware - für Tests und zum Ausprobieren der Oberfläche
     auf einem Rechner ohne Windows."""

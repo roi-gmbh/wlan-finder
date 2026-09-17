@@ -180,3 +180,35 @@ Security settings
     assert parse_profile_key(englisch) == "summer2026"
     # Ohne key=clear steht da nichts - dann lieber None als ein falscher Wert.
     assert parse_profile_key("    Authentifizierung : WPA2-Personal") is None
+
+
+def test_erkennt_fehlende_standortberechtigung():
+    """Neuere Windows-Versionen geben die WLAN-Liste nur mit eingeschalteten
+    Ortungsdiensten heraus. Die Meldung ist übersetzt, der genannte URI nicht -
+    darauf wird geprüft."""
+    from wlanfinder.netsh import _is_location_denied
+
+    deutsch = (
+        "Netzwerkshellbefehle benötigen Standortberechtigungen für den Zugriff auf "
+        "WLAN-Informationen. Aktivieren Sie „Positionsdienste\" ... "
+        "ms-settings:privacy-location ..."
+    )
+    englisch = (
+        "Network shell commands require location permission to access Wi-Fi "
+        "information. ... ms-settings:privacy-location ..."
+    )
+    assert _is_location_denied(deutsch)
+    assert _is_location_denied(englisch)
+    # Andere Fehler dürfen nicht in diese Schublade wandern.
+    assert not _is_location_denied("Die Schnittstelle ist nicht vorhanden.")
+
+
+def test_scanfehler_wegen_standort_liefert_die_anleitung():
+    from wlanfinder.netsh import LOCATION_HELP
+    from wlanfinder.wifi import LocationPermissionError, WifiError
+
+    # Die Anleitung nennt den Weg, nicht nur das Problem.
+    assert "ms-settings:privacy-location" in LOCATION_HELP
+    assert "Erneut suchen" in LOCATION_HELP
+    # Und sie bleibt für den Aufrufer ein ganz normaler WifiError.
+    assert issubclass(LocationPermissionError, WifiError)
