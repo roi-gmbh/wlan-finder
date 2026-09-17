@@ -203,6 +203,13 @@ python -m wlanfinder --demo
    der Versuch lohnt, es aber kaum stabil wird.
 2. **Verbinden** — nur auf Klick. Bei verschlüsselten, noch unbekannten Netzen
    fragt die Oberfläche nach dem Passwort.
+
+   Trägt das Netz das Abzeichen **Passwort vorhanden**, entfällt die Frage:
+   Das Passwort steht entweder im gespeicherten Windows-Profil oder im
+   eigenen Logbuch vom letzten Besuch. Es bleibt dabei im lokalen Dienst und
+   wird nicht an den Browser geschickt. Ist beides vorhanden, gewinnt das
+   Windows-Profil — wurde das Passwort am Platz geändert, ist es der
+   neuere Stand.
 3. Alles Gefundene landet im **Logbuch** (s. o.) — Voraussetzung ist der
    Standort im Feld ganz oben.
 4. Erkennt WLAN Finder danach eine Anmeldeseite, erscheint der Abschnitt
@@ -248,7 +255,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-71 Tests, ohne Netzwerk- und ohne API-Zugriff. Abgedeckt sind die
+79 Tests, ohne Netzwerk- und ohne API-Zugriff. Abgedeckt sind die
 netsh-Parser (deutsch und englisch), die Portal-Erkennung inklusive des
 heimtückischen Falls „Status 200, aber es ist die Portalseite", die
 Angebotsregeln, das Logbuch (Suchläufe, nachträgliches Ergänzen des

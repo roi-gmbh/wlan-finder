@@ -262,6 +262,7 @@ function renderNetworks(state) {
       securityBadge(net),
       net.known ? '<span class="badge ok">bekannt</span>' : "",
       row.needs_portal_login && row.offered ? '<span class="badge warn">Anmeldeseite wahrscheinlich</span>' : "",
+      row.has_password ? '<span class="badge ok">Passwort vorhanden</span>' : "",
     ].join(" ");
     const button = row.connectable
       ? `<button data-ssid="${escapeHtml(net.ssid)}" data-pass="${row.needs_passphrase}"${row.offered ? ' class="primary"' : ""}>Verbinden</button>`

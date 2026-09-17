@@ -12,7 +12,7 @@ from typing import Any
 
 from . import connectivity
 from .config import Config
-from .logbook import NOT_CONNECTED, OPEN_NETWORK, Logbook
+from .logbook import NOT_CONNECTED, OPEN_NETWORK, PLACEHOLDERS, Logbook
 from .models import Connectivity, LinkKind, Network, PortalResult, Verdict
 from .offer import build_offers, build_rows
 from .wifi import WifiBackend, WifiError
@@ -53,6 +53,10 @@ class Service:
         # und WLAN-Ortung würde die Umgebung an einen fremden Dienst melden.
         # Deshalb trägt der Nutzer sie ein, und wir merken sie uns.
         self.address: str = self._last_known_address()
+        # Passwörter, die wir schon besitzen - aus gespeicherten
+        # Windows-Profilen und aus dem eigenen Logbuch. Bleibt im Dienst;
+        # die Weboberfläche erfährt nur, DASS eines vorliegt.
+        self.known_passwords: dict[str, str] = {}
 
     # -- Zustand ------------------------------------------------------------
 
@@ -85,8 +89,40 @@ class Service:
             else:
                 self.connectivity = None
 
+            self._collect_known_passwords()
             self._log_scan()
         return self.state()
+
+    def _collect_known_passwords(self) -> None:
+        """Sammelt die Passwörter, die schon vorliegen.
+
+        Zwei Quellen, beide die eigenen: die in Windows gespeicherten Profile
+        und das Logbuch vom letzten Besuch. Kein Fall für ein Sprachmodell -
+        das ist Nachschlagen, kein Deuten.
+        """
+        # Nicht-Passwörter, die als Platzhalter im Logbuch stehen.
+        no_password = set(PLACEHOLDERS) | {OPEN_NETWORK}
+        found: dict[str, str] = {}
+
+        # Logbuch, neueste Einträge zuerst - der erste Treffer je Netz gilt.
+        for entry in self.logbook.entries():
+            if entry.ssid in found or not entry.password or entry.password in no_password:
+                continue
+            found[entry.ssid] = entry.password
+
+        # Das Windows-Profil sticht das Logbuch: Wurde das Passwort am Platz
+        # geändert, ist das gespeicherte Profil der aktuellere Stand.
+        for network in self.networks:
+            if not network.known:
+                continue
+            try:
+                password = self.backend.profile_password(network.ssid)
+            except WifiError:
+                continue
+            if password:
+                found[network.ssid] = password
+
+        self.known_passwords = found
 
     def state(self) -> dict[str, Any]:
         rows = build_rows(
@@ -102,8 +138,8 @@ class Service:
             "networks": [n.to_dict() for n in self.networks],
             # Alle gefundenen Netze mit Bewertung. Eine leere Angebotsliste
             # darf nicht wie ein fehlgeschlagener Scan aussehen.
-            "rows": [row.to_dict() for row in rows],
-            "offers": [row.to_dict() for row in rows if row.offered],
+            "rows": [self._row_dict(row) for row in rows],
+            "offers": [self._row_dict(row) for row in rows if row.offered],
             "connectivity": self.connectivity.to_dict() if self.connectivity else None,
             "portal_job": self.portal_job.to_dict(),
             "address": self.address,
@@ -119,6 +155,16 @@ class Service:
             "error": self.last_error,
         }
 
+    def _row_dict(self, row) -> dict[str, Any]:
+        """Eine Netz-Zeile für die Oberfläche, ergänzt um die Passwortfrage."""
+        data = row.to_dict()
+        has_password = row.network.ssid in self.known_passwords
+        data["has_password"] = has_password
+        if has_password:
+            # Liegt das Passwort vor, muss niemand danach gefragt werden.
+            data["needs_passphrase"] = False
+        return data
+
     # -- Aktionen -----------------------------------------------------------
 
     def connect(
@@ -130,6 +176,10 @@ class Service:
         """
         if address is not None:
             self.address = address.strip()
+        # Ohne Eingabe nehmen wir, was wir schon haben. Das Passwort wandert
+        # so nie durch den Browser.
+        if not passphrase:
+            passphrase = self.known_passwords.get(ssid)
         try:
             self.backend.connect(ssid, passphrase)
         except WifiError as exc:
@@ -147,6 +197,7 @@ class Service:
         eigens noch einmal suchen."""
         self.address = address.strip()
         with self._lock:
+            self._collect_known_passwords()
             self._log_scan()
         return self.state()
 
