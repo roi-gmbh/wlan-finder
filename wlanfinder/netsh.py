@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 
 from .models import LinkKind, Network, Security
-from .wifi import LocationPermissionError, WifiError
+from .wifi import AdapterOffError, LocationPermissionError, WifiError
 
 # "SSID 1 : Name" - das Wort SSID ist in allen Windows-Sprachen gleich.
 _SSID_LINE = re.compile(r"^SSID\s+\d+\s*:\s*(.*)$")
@@ -57,6 +57,26 @@ LOCATION_HELP = (
 )
 
 
+# Für den ausgeschalteten Adapter nennt Windows keinen sprachneutralen
+# Anker wie oben den URI - hier bleibt nur das Stichwort je Sprache. Bei einer
+# nicht aufgeführten Sprachversion erscheint eben die Originalmeldung; die ist
+# in diesem Fall kurz und verständlich.
+_ADAPTER_OFF_WORDS = ("ausgeschaltet", "powered down", "apagada", "hors tension")
+
+ADAPTER_OFF_HELP = (
+    "Der WLAN-Adapter ist ausgeschaltet. Einschalten über das Netzwerksymbol "
+    "unten rechts in der Taskleiste (WLAN-Kachel aktivieren, Flugmodus aus) - "
+    "manche Laptops haben zusätzlich eine Hardwaretaste, meist Fn mit dem "
+    "Funkwellen-Symbol. Danach hier auf \u201eErneut suchen\u201c klicken."
+)
+
+
+def _is_adapter_off(output: str) -> bool:
+    """Erkennt die Windows-Meldung über den ausgeschalteten Funkadapter."""
+    lowered = output.lower()
+    return any(word in lowered for word in _ADAPTER_OFF_WORDS)
+
+
 def _is_location_denied(output: str) -> bool:
     """Erkennt die Windows-Meldung über fehlende Standortberechtigung."""
     lowered = output.lower()
@@ -78,6 +98,8 @@ def _run(args: list[str]) -> str:
         # ist eine Textwand. Deshalb hier eine kurze, brauchbare Anleitung.
         if _is_location_denied(detail):
             raise LocationPermissionError(LOCATION_HELP)
+        if _is_adapter_off(detail):
+            raise AdapterOffError(ADAPTER_OFF_HELP)
         raise WifiError(f"{' '.join(args)} endete mit Code {proc.returncode}: {detail}")
     return out
 

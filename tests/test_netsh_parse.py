@@ -212,3 +212,26 @@ def test_scanfehler_wegen_standort_liefert_die_anleitung():
     assert "Erneut suchen" in LOCATION_HELP
     # Und sie bleibt für den Aufrufer ein ganz normaler WifiError.
     assert issubclass(LocationPermissionError, WifiError)
+
+
+def test_erkennt_ausgeschalteten_adapter():
+    """Beim ersten Lauf auf einem privaten Laptop war der Funkadapter aus.
+    Die Windows-Meldung dazu nennt keinen sprachneutralen Anker, deshalb
+    Stichworte je Sprache."""
+    from wlanfinder.netsh import ADAPTER_OFF_HELP, _is_adapter_off
+    from wlanfinder.wifi import AdapterOffError, WifiError
+
+    deutsch = (
+        "Die W-LAN-Schnittstelle ist ausgeschaltet und unterstützt den "
+        "angeforderten Vorgang nicht."
+    )
+    englisch = (
+        "The wireless local area network interface is powered down and doesn't "
+        "support the requested operation."
+    )
+    assert _is_adapter_off(deutsch)
+    assert _is_adapter_off(englisch)
+    assert not _is_adapter_off("Die Schnittstelle ist nicht vorhanden.")
+
+    assert "Flugmodus" in ADAPTER_OFF_HELP
+    assert issubclass(AdapterOffError, WifiError)

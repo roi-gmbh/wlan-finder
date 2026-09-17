@@ -158,7 +158,8 @@ Schalter auf „Ein":
 2. **Desktop-Apps den Zugriff auf Ihren Standort erlauben**
 
 WLAN Finder erkennt diesen Fall und zeigt die Anleitung in der Oberfläche —
-du musst sie nicht auswendig können.
+du musst sie nicht auswendig können. Dasselbe gilt für den zweiten Klassiker:
+ausgeschalteter Funkadapter (Flugmodus, WLAN-Kachel, Hardwaretaste).
 
 ```powershell
 git clone <dieses-repo>
@@ -247,7 +248,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-70 Tests, ohne Netzwerk- und ohne API-Zugriff. Abgedeckt sind die
+71 Tests, ohne Netzwerk- und ohne API-Zugriff. Abgedeckt sind die
 netsh-Parser (deutsch und englisch), die Portal-Erkennung inklusive des
 heimtückischen Falls „Status 200, aber es ist die Portalseite", die
 Angebotsregeln, das Logbuch (Suchläufe, nachträgliches Ergänzen des

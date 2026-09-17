@@ -44,6 +44,14 @@ class WifiError(RuntimeError):
     """Der Verbindungs- oder Scanbefehl des Betriebssystems ist fehlgeschlagen."""
 
 
+class AdapterOffError(WifiError):
+    """Die WLAN-Schnittstelle ist ausgeschaltet.
+
+    Kein Fehler des Programms - der Funkadapter ist aus (Flugmodus, die
+    WLAN-Kachel in Windows oder eine Hardwaretaste am Gerät).
+    """
+
+
 class LocationPermissionError(WifiError):
     """Windows gibt die WLAN-Liste nur mit eingeschalteten Ortungsdiensten heraus.
 
