@@ -181,6 +181,20 @@ wlan-finder
 
 Der Browser öffnet sich auf `http://127.0.0.1:8765`.
 
+### Per Doppelklick starten (Desktop-Verknüpfung)
+
+Statt jedes Mal PowerShell zu öffnen, gibt es im Ordner die Datei
+`start.bat` — ein Doppelklick darauf startet WLAN Finder.
+
+Für eine Verknüpfung auf dem Desktop: im Explorer mit der **rechten Maustaste**
+auf `start.bat` klicken, dann **Senden an → Desktop (Verknüpfung erstellen)**.
+Die Verknüpfung auf dem Desktop lässt sich umbenennen (z. B. „WLAN Finder")
+und über Rechtsklick → **Eigenschaften → Anderes Symbol** mit einem eigenen
+Icon versehen.
+
+Das schwarze Fenster, das dabei aufgeht, gehört dazu — dort läuft der Dienst.
+Zum Beenden dieses Fenster schließen oder `Strg+C` drücken.
+
 Ohne Windows (z. B. zum Ansehen der Oberfläche):
 
 ```
