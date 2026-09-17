@@ -52,3 +52,36 @@ def test_bekanntes_verschluesseltes_netz_braucht_kein_passwort():
         [net("Privat", 80, Security.WPA_PERSONAL, known=True)], LinkKind.ETHERNET, None
     )[0]
     assert not offer.needs_passphrase
+
+
+# -- Schwelle ---------------------------------------------------------------
+
+
+def test_schwache_netze_ab_der_schwelle_werden_angeboten():
+    """15 % ist die Voreinstellung: Auf einem Stellplatz ist ein schwaches
+    Netz oft alles, was da ist."""
+    offers = build_offers([net("Schwach", 20)], LinkKind.ETHERNET, None)
+    assert [o.network.ssid for o in offers] == ["Schwach"]
+    assert "schwaches Signal" in offers[0].reason
+
+
+def test_eigene_schwelle_aus_der_konfiguration():
+    netze = [net("Mittel", 50), net("Schwach", 20)]
+    offers = build_offers(netze, LinkKind.ETHERNET, None, min_signal=40)
+    assert [o.network.ssid for o in offers] == ["Mittel"]
+
+
+def test_alle_netze_erscheinen_auch_die_nicht_angebotenen():
+    """Eine gefilterte Liste darf nicht wie ein fehlgeschlagener Scan aussehen."""
+    from wlanfinder.offer import build_rows
+
+    netze = [net("Gut", 80), net("Winzig", 5), net("Firma", 90, Security.WPA_ENTERPRISE)]
+    rows = build_rows(netze, LinkKind.ETHERNET, "Gut")
+
+    assert len(rows) == 3
+    nach_ssid = {row.network.ssid: row for row in rows}
+    assert nach_ssid["Gut"].reason == "aktuell verbunden"
+    assert not nach_ssid["Gut"].connectable
+    assert "zu schwach" in nach_ssid["Winzig"].reason
+    assert "Firmennetz" in nach_ssid["Firma"].reason
+    assert not nach_ssid["Firma"].connectable

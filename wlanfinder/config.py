@@ -62,6 +62,8 @@ class Config:
     agent: AgentConfig = field(default_factory=AgentConfig)
     logbook: LogbookConfig = field(default_factory=LogbookConfig)
     trusted_ssids: frozenset[str] = frozenset()
+    # Ab welcher Signalstärke ein Netz überhaupt angeboten wird.
+    min_signal: int = 15
 
     @classmethod
     def load(cls, path: Path | None = None) -> "Config":
@@ -81,7 +83,9 @@ class Config:
         cfg.agent = _fill(AgentConfig, raw.get("agent", {}))
         cfg.logbook = _fill(LogbookConfig, raw.get("logbook", {}))
 
-        known = raw.get("networks", {}).get("known", [])
+        networks = raw.get("networks", {})
+        cfg.min_signal = int(networks.get("min_signal", cfg.min_signal))
+        known = networks.get("known", [])
         cfg.trusted_ssids = frozenset(
             entry["ssid"] for entry in known if entry.get("trusted") and entry.get("ssid")
         )

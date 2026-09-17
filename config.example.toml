@@ -59,6 +59,12 @@ max_tokens = 16000
 # ANTHROPIC_API_KEY gelesen.
 
 [networks]
+# Ab welcher Signalstärke (0-100) ein Netz zum Wechsel angeboten wird.
+# Schwächere werden trotzdem angezeigt - nur mit dem Hinweis, dass kaum
+# etwas zu erwarten ist. Auf einem Stellplatz ist ein schwaches Netz oft
+# alles, was da ist.
+min_signal = 15
+
 # Optionale Liste bekannter Netze. "trusted" heisst nur: wird in der
 # Oberfläche hervorgehoben - verbunden wird trotzdem erst auf Klick.
 # [[networks.known]]

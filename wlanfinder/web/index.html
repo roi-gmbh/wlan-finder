@@ -135,7 +135,7 @@
   </section>
 
   <section>
-    <h2>Gefundene Netze</h2>
+    <h2 id="netze-titel">Gefundene Netze</h2>
     <div id="offers"></div>
   </section>
 
@@ -238,30 +238,41 @@ function renderPortal(state) {
   $("portal-steps").textContent = lines.join("\n");
 }
 
-function renderOffers(state) {
+function renderNetworks(state) {
   const box = $("offers");
+  const rows = state.rows || [];
+  $("netze-titel").textContent = rows.length
+    ? `Gefundene Netze (${rows.length})`
+    : "Gefundene Netze";
+
   if (state.error) {
-    box.innerHTML = `<div class="banner bad">${state.error}</div>`;
+    box.innerHTML = `<div class="banner bad">${escapeHtml(state.error)}</div>`;
     return;
   }
-  if (!state.offers.length) {
-    box.innerHTML = '<p class="muted">Kein Netz in Reichweite, das einen Wechsel lohnt. Schwache Netze (unter 40 %) und Firmennetze werden ausgeblendet.</p>';
+  if (!rows.length) {
+    box.innerHTML = '<p class="muted">Kein WLAN in Reichweite. Ist das WLAN am Laptop eingeschaltet (Flugmodus aus)? Sind die Ortungsdienste an? Ohne sie gibt Windows die Liste nicht heraus.</p>';
     return;
   }
-  box.innerHTML = state.offers.map((offer) => {
-    const net = offer.network;
+
+  // Alle gefundenen Netze anzeigen, nicht nur die empfohlenen - sonst sieht
+  // eine gefilterte Liste wie ein fehlgeschlagener Scan aus.
+  box.innerHTML = rows.map((row) => {
+    const net = row.network;
     const badges = [
       securityBadge(net),
       net.known ? '<span class="badge ok">bekannt</span>' : "",
-      offer.needs_portal_login ? '<span class="badge warn">Anmeldeseite wahrscheinlich</span>' : "",
+      row.needs_portal_login && row.offered ? '<span class="badge warn">Anmeldeseite wahrscheinlich</span>' : "",
     ].join(" ");
-    return `<div class="net">
+    const button = row.connectable
+      ? `<button data-ssid="${escapeHtml(net.ssid)}" data-pass="${row.needs_passphrase}"${row.offered ? ' class="primary"' : ""}>Verbinden</button>`
+      : "";
+    return `<div class="net"${row.offered ? "" : ' style="opacity:.62"'}>
       ${signalBar(net.signal)}
       <div class="grow">
         <div class="ssid">${escapeHtml(net.ssid)} ${badges}</div>
-        <div class="muted">${escapeHtml(offer.reason)}</div>
+        <div class="muted">${escapeHtml(row.reason)}</div>
       </div>
-      <button data-ssid="${escapeHtml(net.ssid)}" data-pass="${offer.needs_passphrase}">Verbinden</button>
+      ${button}
     </div>`;
   }).join("");
 
@@ -327,7 +338,7 @@ function render(state) {
   renderLink(state);
   renderAddress(state);
   renderPortal(state);
-  renderOffers(state);
+  renderNetworks(state);
   renderLogbook(state);
   renderSafety(state);
 }

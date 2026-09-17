@@ -14,7 +14,7 @@ from . import connectivity
 from .config import Config
 from .logbook import NOT_CONNECTED, OPEN_NETWORK, Logbook
 from .models import Connectivity, LinkKind, Network, PortalResult, Verdict
-from .offer import build_offers
+from .offer import build_offers, build_rows
 from .wifi import WifiBackend, WifiError
 
 
@@ -89,12 +89,21 @@ class Service:
         return self.state()
 
     def state(self) -> dict[str, Any]:
-        offers = build_offers(self.networks, self.link, self.current_ssid, self.config.trusted_ssids)
+        rows = build_rows(
+            self.networks,
+            self.link,
+            self.current_ssid,
+            self.config.trusted_ssids,
+            self.config.min_signal,
+        )
         return {
             "link": self.link.value,
             "current_ssid": self.current_ssid,
             "networks": [n.to_dict() for n in self.networks],
-            "offers": [o.to_dict() for o in offers],
+            # Alle gefundenen Netze mit Bewertung. Eine leere Angebotsliste
+            # darf nicht wie ein fehlgeschlagener Scan aussehen.
+            "rows": [row.to_dict() for row in rows],
+            "offers": [row.to_dict() for row in rows if row.offered],
             "connectivity": self.connectivity.to_dict() if self.connectivity else None,
             "portal_job": self.portal_job.to_dict(),
             "address": self.address,

@@ -190,8 +190,16 @@ python -m wlanfinder --demo
 
 ## Bedienung
 
-1. **Erneut suchen** — zeigt die Netze in Reichweite. Zu schwache (unter 40 %)
-   und Firmennetze mit Nutzerkonto werden ausgeblendet.
+1. **Erneut suchen** — zeigt **alle** Netze in Reichweite. Netze, zu denen ein
+   Wechsel nichts bringt, stehen blass darunter, mit dem Grund: „aktuell
+   verbunden", „Firmennetz mit Nutzerkonto" oder „Signal zu schwach".
+   Eine leere Liste heißt damit wirklich: nichts gefunden — und nicht:
+   alles herausgefiltert.
+
+   Die Schwelle liegt bei **15 %** und ist über `min_signal` in `config.toml`
+   änderbar. Niedrig angesetzt, weil auf einem Stellplatz ein schwaches Netz
+   oft alles ist, was da ist; zwischen 15 und 40 % steht am Netz dran, dass
+   der Versuch lohnt, es aber kaum stabil wird.
 2. **Verbinden** — nur auf Klick. Bei verschlüsselten, noch unbekannten Netzen
    fragt die Oberfläche nach dem Passwort.
 3. Alles Gefundene landet im **Logbuch** (s. o.) — Voraussetzung ist der
@@ -214,7 +222,7 @@ wlanfinder/
   logbook.py        CSV-Logbuch: Datum, WLAN, Passwort, Adresse
   wifi.py           Schnittstelle zur Hardware + Fake-Backend für Tests
   connectivity.py   Portal-Erkennung, an den WLAN-Adapter gebunden
-  offer.py          Regeln: welcher Wechsel lohnt sich
+  offer.py          Regeln: welche Netze angeboten werden und warum nicht
   service.py        Ablauf und Zustand
   server.py         FastAPI + JSON-Schnittstelle
   web/index.html    Oberfläche (eine Datei, keine Abhängigkeiten, offlinefähig)
@@ -239,7 +247,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-65 Tests, ohne Netzwerk- und ohne API-Zugriff. Abgedeckt sind die
+70 Tests, ohne Netzwerk- und ohne API-Zugriff. Abgedeckt sind die
 netsh-Parser (deutsch und englisch), die Portal-Erkennung inklusive des
 heimtückischen Falls „Status 200, aber es ist die Portalseite", die
 Angebotsregeln, das Logbuch (Suchläufe, nachträgliches Ergänzen des
